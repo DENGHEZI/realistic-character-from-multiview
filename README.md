@@ -1,9 +1,8 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.png">
-    <img src="assets/banner-light.png" alt="写实角色精修：把图生 3D 角色修成能进引擎的资产" width="100%">
-  </picture>
-</p>
+<h1 align="center">写实角色精修图谱</h1>
+
+<p align="center"><sub>realistic-character-from-multiview</sub></p>
+
+<p align="center">把 AI 图生 3D 的角色底模，修成可绑定、可回读、可交付的资产。<br>八张图谱，一套能复现的工艺。</p>
 
 <p align="center">
   <a href="https://github.com/DENGHEZI/realistic-character-from-multiview/actions/workflows/ci.yml"><img src="https://github.com/DENGHEZI/realistic-character-from-multiview/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -14,107 +13,67 @@
 </p>
 
 <p align="center">
-  一个 WorkBuddy / Claude 技能包：把 AI 图生 3D 的角色底模，修成可绑定、可回读、可交付的资产。
-</p>
-
-<p align="center">
-  <a href="#七段流水线">流水线</a> ·
-  <a href="#三个关键参数">关键参数</a> ·
-  <a href="#验收门">验收门</a> ·
+  <a href="#图谱总览">图谱</a> ·
   <a href="#快速开始">快速开始</a> ·
   <a href="#实测数据">实测数据</a> ·
-  <a href="#常见失败与对策">失败对策</a> ·
-  <a href="#边界与已知限制">边界</a>
+  <a href="#边界与已知限制">边界</a> ·
+  <a href="#许可">许可</a>
 </p>
 
-> 本仓库只包含方法、参数和检查脚本，**不含任何角色模型、贴图或渲染图**。文中数值来自一次真实交付，可直接复现。
+> 本仓库只包含方法、参数和检查脚本，**不含任何角色模型、贴图或渲染图**。所有数值来自一次真实交付，可复现。
 
-## 三十秒判断要不要用
+## 图谱总览
 
-| 适合 | 不适合 |
-|---|---|
-| 底模来自图生 3D，整体尚可、局部不能看 | 需要从零建一个角色 |
-| 手黏成一坨、发顶发亮、衣服像塑料 | 只想要一张好看的渲染图 |
-| 要进 Unity / Unreal / Godot，需要骨架与权重 | 模型已在引擎验收，只差调色 |
-
-## 它解决什么
-
-图生 3D 交付的是**造型底子 + 一张烘好的 UV 图集**，它不给你三样东西：
-
-- **拓扑** —— 指缝常常是糊死的，减面只会把缝抹平。
-- **绑定** —— 骨架为空，或只有躯干，手指无法单独驱动。
-- **材质语义** —— 一个 Principled 材质管全身，所以看起来像塑料。
-
-于是症状很固定：手指黏连、发顶银亮、整身发白、裙面串进别处的花纹。
-
-这个技能的做法是**该重做的重做，该量化的量化**：比例归一、双手重建、材质拆分、指骨绑定、双格式回读，每一步都留一个能被下次运行复现的数值或断言。
-
-## 七段流水线
-
-<p align="center">
-  <img src="assets/pipeline.png" alt="七段流水线：身份核对、比例归一、手部重建、材质拆分、发丝与织纹、绑定与权重、双格式验收" width="100%">
-</p>
-
-| 阶段 | 产出 | 关键判据 |
-|---|---|---|
-| 01 身份核对 | 锁定唯一底模 | 顶点 / 三角形 / 贴图指纹一致 |
-| 02 比例归一 | 统一到项目身高 | `SCALE = 目标身高 / 参考身高`，缩放放最后 |
-| 03 手部重建 | 腕部三轴 + 五指 | 袖口切口约 120 条边 |
-| 04 材质拆分 | 14 个语义材质 | 图集采样 + 位置约束 |
-| 05 发丝与织纹 | 真实发缕几何 | 19 缕 × 35 行，斜纹 12 mm |
-| 06 绑定与权重 | 50 骨，每顶点 ≤ 4 影响 | 权重和误差 < 1e-4 |
-| 07 双格式验收 | `.blend` + `.glb` | 三角形数一致，逐指隔离通过 |
-
-## 三个关键参数
-
-### 1. 腕部三轴
-
-<p align="center">
-  <img src="assets/hand-frame.png" alt="腕部三轴与掌指放样参数" width="100%">
-</p>
-
-用世界 XYZ 做放样，手指会朝错误方向长。从袖口截面反推三轴后，五指弯曲方向、指甲朝向、袖口切口自动一致；左右手共用一套代码，只镜像 `span`。
-
-```
-origin   (±0.468, −0.036,  0.969)
-axis     (±0.690, −0.230, −0.686)   # 前臂 → 指尖
-dorsal   front 对 axis 的正交分量     # 手背法向
-span     sign × (axis × dorsal)      # 掌心横向
-cuff_cut 0.010 m                     # 沿 axis 后退
-```
-
-### 2. 权重曲线
-
-<p align="center">
-  <img src="assets/weights.png" alt="手腕与指根共用的权重过渡曲线" width="100%">
-</p>
-
-```
-hand     = smoothstep((reach − 13) / 37)
-finger   = smoothstep((reach − 75) / 28)
-w_finger = hand × finger
-```
-
-袖口、手、前臂共用同一个 `hand` 曲线，所以弯腕时不会露缝。每顶点最多 4 个影响，段内再按进度混合相邻指节，丢弃小于 `1e-4` 的权重后归一。
-
-### 3. 融合顺序
-
-体素 `1.18 mm` 融合掌指，平滑 5 次（factor 0.58），再减到约 2,900 面。顺序换成「融合 → 减面 → 平滑」，指根就会裂开，之后补不回来。
-
-## 验收门
-
-<p align="center">
-  <img src="assets/gates.png" alt="六道验收门与实测值" width="100%">
-</p>
-
-| 门 | 判据 | 不通过时 |
-|---|---|---|
-| G0 身份 | 底模、预览、参考三者对应 | 停下来问清楚，不要猜 |
-| G1 比例 | 包围盒高度与目标差 < 2 mm | 回第二步重算缩放 |
-| G2 网格 | 退化面 0、重复面 0、无 NaN | 清 BMesh、重算法线 |
-| G3 蒙皮 | 权重和误差 < 1e-4、影响 ≤ 4 | 修分配，不要整体平滑糊过去 |
-| G4 手指 | 单指弯曲时其他指尖位移 ≈ 0 | 查最近段判定与过渡区间 |
-| G5 交付 | 两种格式回读，三角形数一致 | 重新导出，不要只报“已导出” |
+<table>
+<tr>
+<td width="50%" align="center" valign="top">
+  <a href="assets/pipeline.png"><img src="assets/pipeline.png" width="400" alt="七段流水线"></a><br>
+  <b>七段流水线</b><br>
+  <sub>从身份核对到双格式验收，每段一个判据</sub>
+</td>
+<td width="50%" align="center" valign="top">
+  <a href="assets/hand-frame.png"><img src="assets/hand-frame.png" width="400" alt="腕部三轴与掌指放样"></a><br>
+  <b>腕部三轴</b><br>
+  <sub>手不是轴对齐的，坐标由袖口截面反推</sub>
+</td>
+</tr>
+<tr>
+<td width="50%" align="center" valign="top">
+  <a href="assets/weights.png"><img src="assets/weights.png" width="400" alt="手腕与指根的权重曲线"></a><br>
+  <b>权重曲线</b><br>
+  <sub>一条曲线同时管手腕与指根，弯腕不露缝</sub>
+</td>
+<td width="50%" align="center" valign="top">
+  <a href="assets/materials.png"><img src="assets/materials.png" width="400" alt="十四个语义材质与粗糙度"></a><br>
+  <b>十四个语义材质</b><br>
+  <sub>同一个图集，按部位给不同粗糙度与镜面</sub>
+</td>
+</tr>
+<tr>
+<td width="50%" align="center" valign="top">
+  <a href="assets/hair.png"><img src="assets/hair.png" width="400" alt="十九缕发丝的真实几何"></a><br>
+  <b>发丝几何</b><br>
+  <sub>十九缕 × 三十五行的真实发束，不画高光条</sub>
+</td>
+<td width="50%" align="center" valign="top">
+  <a href="assets/symptoms.png"><img src="assets/symptoms.png" width="400" alt="六个典型症状的对策链"></a><br>
+  <b>症状对策链</b><br>
+  <sub>看到什么 → 为什么 → 怎么办，避免盲调参数</sub>
+</td>
+</tr>
+<tr>
+<td width="50%" align="center" valign="top">
+  <a href="assets/gates.png"><img src="assets/gates.png" width="400" alt="六道验收门与实测值"></a><br>
+  <b>六道验收门</b><br>
+  <sub>机器可读的 JSON，不靠「看着还行」</sub>
+</td>
+<td width="50%" align="center" valign="top">
+  <a href="assets/export.png"><img src="assets/export.png" width="400" alt="Blender 与 GLB 双格式回读对照"></a><br>
+  <b>双格式回读</b><br>
+  <sub>顶点可以拆，三角形数必须一致</sub>
+</td>
+</tr>
+</table>
 
 ## 快速开始
 
@@ -160,7 +119,7 @@ blender -b --factory-startup --python scripts/blender_character_qa.py -- \
 
 </details>
 
-`.blend` 直接打开；`.glb` / `.gltf` / `.fbx` 导入空场景。检测到 `<Digit>.03.<L|R>` 命名时自动跑逐指隔离测试，否则标 `not_applicable`。退出码 `0` 表示通过，`1` 表示有失败项——`not_checked` 不等于通过。
+`.blend` 直接打开；`.glb` / `.gltf` / `.fbx` 导入空场景。检测到 `<Digit>.03.<L|R>` 命名时自动跑逐指隔离测试，否则标 `not_applicable`。退出码 `0` 表示通过，`1` 表示有失败项。
 
 ## 实测数据
 
@@ -178,21 +137,6 @@ blender -b --factory-startup --python scripts/blender_character_qa.py -- \
 | 其他指尖位移 | 0.0 mm | 0.0 mm |
 | 指甲到皮肤间距（p95） | 0.388 mm | 0.392 mm |
 
-顶点数不同是正常的：GLB 按 UV / 法线接缝拆顶点，三角形数必须一致。
-
-## 常见失败与对策
-
-| 现象 | 真实原因 | 处理 |
-|---|---|---|
-| 整体发白、发粉 | 曝光过高 + 单一高镜面材质 | 先降曝光对齐原版，再按部位拆材质 |
-| 手指黏成一坨 | 底模指缝本来就闭合 | 重做手，别靠减面分开 |
-| 指根出现裂缝 | 融合后没平滑就减面 | 融合 → 平滑 → 减面 |
-| 发顶一片银亮 | 各向异性叠加强法线 | 降法线强度，改用方向纹理 |
-| 裙面串进别处花纹 | 多部件共用一个图集 UV 岛 | 该部件换独立贴图，别在原图集上擦 |
-| 弯指时袖口露缝 | 手腕与袖口权重区间不一致 | 共用同一条过渡函数 |
-
-其中两条属于“改材质解决不了”的问题：串色与图集错位。遇到就换贴图，不要在原图上修补。
-
 ## 仓库结构
 
 ```
@@ -203,17 +147,16 @@ blender -b --factory-startup --python scripts/blender_character_qa.py -- \
 │   └── hand-rig.md                 # 三轴、放样、体素、指甲、权重、姿态阈值
 ├── scripts/
 │   └── blender_character_qa.py     # 网格 / 权重 / 贴图 / 指骨隔离测试
-├── assets/                         # 参数示意图（非模型渲染）
+├── assets/                         # 八张参数图谱（非模型渲染）
 └── .github/workflows/ci.yml        # 语法、技能元数据与资源引用校验
 ```
 
 ## 边界与已知限制
 
 - **不生成底模。** 造型上限由底模决定，本技能只做精修与验收。
-- **只验证到 glTF 与 Blender。** 目标引擎（Unity / Unreal / Godot）未实测时，不得声称“引擎通过”。
+- **只验证到 glTF 与 Blender。** 目标引擎（Unity / Unreal / Godot）未实测时，不得声称「引擎通过」。
 - **检查脚本依赖 Blender。** 需 3.6+，在 5.3 实测；CI 只做静态校验，不跑 Blender。
 - **合规不由脚本判断。** 底模若来自第三方平台，商用前须自行确认当次授权条款；免费额度不等于可商用。
-- **写实不等于像本人。** 面部相似度受底模与参考图限制，不提供身份还原保证。
 
 ## 许可
 
@@ -221,4 +164,4 @@ blender -b --factory-startup --python scripts/blender_character_qa.py -- \
 
 ---
 
-<p align="center"><sub>如果这套流程帮你省下了一轮返工，点个 Star，让更多人少踩一次「手指黏成一坨」的坑。</sub></p>
+<p align="center"><sub>帮你省下一轮返工的话，点个 Star。</sub></p>
