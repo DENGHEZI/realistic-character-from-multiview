@@ -2,7 +2,7 @@
 
 Usage:
     blender -b --factory-startup --python blender_character_qa.py -- \
-        --file "汪果_写实精修版.glb" --report qa.json [--height 1.695] [--no-pose]
+        --file "character.glb" --report qa.json [--height 1.695] [--no-pose]
 
 Accepts .blend (opened directly) or .glb / .gltf / .fbx (imported into an empty scene).
 Checks mesh sanity, skin weights, material textures and, when finger bones are named

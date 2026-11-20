@@ -55,7 +55,7 @@ agent_created: true
 
 ```bash
 blender -b --factory-startup --python scripts/blender_character_qa.py -- \
-  --file "汪果_写实精修版.glb" --report qa.json
+  --file "character.glb" --report qa.json
 ```
 
 脚本对 `.blend` 直接打开、对 `.glb` 重新导入，检查网格、材质、贴图、权重；检测到 `*.01/02/03` 指骨命名时自动跑逐指弯曲隔离测试。
