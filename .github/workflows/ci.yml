@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile QA script
+        run: python -m py_compile scripts/blender_character_qa.py
+
+      - name: Validate skill metadata and asset links
+        run: python .github/validate.py
+
+      - name: Reject model binaries
+        run: |
+          if git ls-files | grep -Ei '\.(blend|blend1|glb|gltf|fbx|obj)$'; then
+            echo "::error::model binaries must not be committed"
+            exit 1
+          fi
+          echo "no model binaries tracked"
