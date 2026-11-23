@@ -34,8 +34,12 @@ def arguments():
     parser.add_argument('--height', type=float, default=None,
                         help='Expected height in metres. Omit to only report the measurement.')
     parser.add_argument('--pose-angle', type=float, default=-32.0)
+    parser.add_argument('--expected-fingers', type=int, help='Require this many successful finger pose tests.')
     parser.add_argument('--no-pose', action='store_true')
-    return parser.parse_args(argv)
+    options = parser.parse_args(argv)
+    if options.expected_fingers is not None and (options.expected_fingers <= 0 or options.no_pose):
+        parser.error('--expected-fingers must be positive and requires pose testing')
+    return options
 
 
 def load(path):
@@ -171,23 +175,30 @@ def pose_gate(model, rig, angle):
     rest = evaluated(model)
     result = {}
     failures = []
+    missing_joints = []
     for tip, indices in sorted(tips.items()):
         joint = tip.replace('.03.', '.02.')
         if joint not in rig.pose.bones:
+            missing_joints.append(joint)
             continue
         bone = rig.pose.bones[joint]
-        bend(bone, angle)
-        moved = np.linalg.norm(evaluated(model) - rest, axis=1) * 1000.0
+        previous_mode, previous_pose = bone.rotation_mode, bone.matrix_basis.copy()
+        try:
+            bend(bone, angle)
+            moved = np.linalg.norm(evaluated(model) - rest, axis=1) * 1000.0
+        finally:
+            bone.rotation_mode = previous_mode
+            bone.matrix_basis = previous_pose
         others = [v for name, group in tips.items() if name != tip for v in group]
         own = float(np.median(moved[indices]))
         spill = float(np.max(moved[others])) if others else 0.0
         result[tip] = {'tip_median_mm': round(own, 3), 'other_tips_max_mm': round(spill, 3)}
         if own < 3.0 or spill > 0.5:
             failures.append(tip)
-        bend(bone, 0.0)
     bpy.context.view_layer.update()
-    return {'status': 'pass' if not failures else 'fail',
-            'isolated_failures': failures, 'angle_degrees': angle, 'per_bone': result}
+    return {'status': 'fail' if failures or missing_joints else 'pass',
+            'isolated_failures': failures, 'missing_joints': missing_joints,
+            'angle_degrees': angle, 'per_bone': result}
 
 
 def main():
@@ -229,8 +240,13 @@ def main():
         failures.append(f'height {height:.4f} m differs from {options.height:.4f} m')
 
     pose = {'status': 'skipped'} if options.no_pose else pose_gate(model, rig, options.pose_angle)
-    if pose['status'] == 'fail':
-        failures.append('finger bend leaks into other fingers: ' + ', '.join(pose['isolated_failures']))
+    if pose.get('isolated_failures'):
+        failures.append('insufficient finger motion or excess spill: ' + ', '.join(pose['isolated_failures']))
+    if pose.get('missing_joints'):
+        failures.append('missing intermediate finger bones: ' + ', '.join(pose['missing_joints']))
+    tested_count = len(pose.get('per_bone', {}))
+    if options.expected_fingers is not None and tested_count != options.expected_fingers:
+        failures.append(f'tested {tested_count} fingers, expected {options.expected_fingers}')
 
     report = {'file': str(path), 'status': 'fail' if failures else ('warn' if warnings else 'pass'),
               'gates': gates, 'finger_pose': pose, 'failures': failures, 'warnings': warnings}
