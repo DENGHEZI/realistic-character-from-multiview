@@ -9,10 +9,11 @@
   <img src="https://img.shields.io/badge/Blender-5.3-F5792A?logo=blender&logoColor=white" alt="Blender 5.3">
   <img src="https://img.shields.io/badge/glTF-2.0-8CC84B" alt="glTF 2.0">
   <img src="https://img.shields.io/badge/License-MIT-0FA693" alt="MIT">
-  <img src="https://img.shields.io/badge/%E6%A8%A1%E5%9E%8B%E8%B5%84%E4%BA%A7-0%20%E4%B8%AA-6E6E73" alt="不含模型资产">
+  <img src="https://img.shields.io/badge/%E4%BA%A4%E4%BB%98%E6%A0%B7%E6%9C%AC-5%20%E5%BC%A0-0FA693" alt="5 张交付样本图">
 </p>
 
 <p align="center">
+  <a href="#交付样本">样本</a> ·
   <a href="#图谱总览">图谱</a> ·
   <a href="#快速开始">快速开始</a> ·
   <a href="#实测数据">实测数据</a> ·
@@ -20,7 +21,7 @@
   <a href="#许可">许可</a>
 </p>
 
-> 本仓库只包含方法、参数和检查脚本，**不含任何角色模型、贴图或渲染图**。所有数值来自一次真实交付，可复现。
+> 方法与参数来自一次真实交付，另有 5 张实拍样本图佐证结果。**不含可编辑工程或模型文件**，数值可复现。
 
 ## 图谱总览
 
@@ -71,6 +72,44 @@
   <a href="assets/export.png"><img src="assets/export.png" width="400" alt="Blender 与 GLB 双格式回读对照"></a><br>
   <b>双格式回读</b><br>
   <sub>顶点可以拆，三角形数必须一致</sub>
+</td>
+</tr>
+</table>
+
+## 交付样本
+
+同一角色的实际渲染与修复前后对照，均来自本地 Blender 与 GLB 回读。
+
+<table>
+<tr>
+<td width="50%" align="center" valign="top">
+  <a href="assets/samples/full-body.png"><img src="assets/samples/full-body.png" width="400" alt="全身样本"></a><br>
+  <b>全身样本</b><br>
+  <sub>常服换装后的整体渲染</sub>
+</td>
+<td width="50%" align="center" valign="top">
+  <a href="assets/samples/three-views.png"><img src="assets/samples/three-views.png" width="400" alt="三视对照"></a><br>
+  <b>三视对照</b><br>
+  <sub>正侧背同机位核对轮廓</sub>
+</td>
+</tr>
+<tr>
+<td width="50%" align="center" valign="top">
+  <a href="assets/samples/hands.png"><img src="assets/samples/hands.png" width="400" alt="双手精细"></a><br>
+  <b>双手精细</b><br>
+  <sub>十指逐指重建与甲片贴合</sub>
+</td>
+<td width="50%" align="center" valign="top">
+  <a href="assets/samples/repair-before-after.png"><img src="assets/samples/repair-before-after.png" width="400" alt="瑕疵修复对照"></a><br>
+  <b>瑕疵修复对照</b><br>
+  <sub>同机位同光照的修前修后</sub>
+</td>
+</tr>
+<tr>
+<td width="100%" align="center" valign="top">
+  <a href="assets/samples/neck-before-after.png"><img src="assets/samples/neck-before-after.png" width="820" alt="颈部精修对照"></a><br>
+  <b>颈部精修对照</b><br>
+  <sub>颈宽 106 → 99 mm，七姿态跨部件相交均为 0</sub>
 </td>
 </tr>
 </table>
@@ -146,8 +185,11 @@ blender -b --factory-startup --python scripts/blender_character_qa.py -- \
 │   ├── pipeline.md                 # 分阶段参数、图集采样、UV、灯光、导出
 │   └── hand-rig.md                 # 三轴、放样、体素、指甲、权重、姿态阈值
 ├── scripts/
-│   └── blender_character_qa.py     # 网格 / 权重 / 贴图 / 指骨隔离测试
-├── assets/                         # 八张参数图谱（非模型渲染）
+│   ├── blender_character_qa.py     # 网格 / 权重 / 贴图 / 指骨隔离测试
+│   └── blender_neck_qa.py          # 颈部 / 领口七姿态自交检查
+├── assets/
+│   ├── *.png                       # 八张参数图谱（非模型渲染）
+│   └── samples/                    # 五张交付样本图（角色渲染）
 └── .github/workflows/ci.yml        # 语法、技能元数据与资源引用校验
 ```
 
@@ -160,7 +202,7 @@ blender -b --factory-startup --python scripts/blender_character_qa.py -- \
 
 ## 许可
 
-代码与文档采用 [MIT License](LICENSE)。仓库内不含任何第三方模型、贴图或角色肖像。
+代码与文档采用 [MIT License](LICENSE)。仓库内不含任何第三方模型或贴图；`samples/` 中的角色渲染为案例交付样本，不代表可商用授权。
 
 ---
 
